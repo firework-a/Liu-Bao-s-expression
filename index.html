@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <link rel="icon" href="./favicon.jpg" type="image/jpg"> -->
+    <link rel="icon" href="./img/favicon.ico" type="image/ico">
+    <title>柳宝表情生成</title>
+    <style>
+        body {
+            /* 应用 Flexbox 布局 */
+            display: flex;
+            justify-content: center;
+            /* 水平居中 */
+            align-items: center;
+            /* 垂直居中 */
+            min-height: 100vh;
+            /* 至少占满视口高度 */
+            margin: 0;
+            /* 移除默认边距 */
+            background-color: antiquewhite;
+        }
+
+        .container {
+            position: relative;
+            /* 使按钮相对于此容器定位 */
+            display: flex;
+            flex-direction: column;
+            /* 垂直排列 */
+            align-items: center;
+            /* 垂直居中 */
+        }
+
+        .image-container {
+            position: relative;
+            display: inline-block;
+            background-color: aqua;
+            width: 300px;
+            /* 设置固定宽度 */
+            height: 300px;
+            /* 设置固定高度 */
+        }
+
+        #overlay {
+            position: absolute;
+            top: 30px;
+            left: 20px;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            cursor: pointer;
+        }
+
+        #btn {
+            background-color: blueviolet;
+            color: beige;
+            cursor: pointer;
+            height: 60px;
+            width: 250px;
+            position: absolute;
+            border-radius: 14px;
+            font-size: 24pt;
+            font-weight: bolder;
+            box-shadow: 12px;
+            border-color: aqua;
+            /* 重新计算位置 */
+            top: calc(100% + 30px);
+            /* 按照父元素的高度计算 */
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .foreimg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            float: left;
+            z-index: 2;
+            opacity: 1;
+        }
+
+        .repimg {
+            position: absolute;
+            width: 100px;
+            height: 110px;
+            display: flex;
+            float: left;
+            z-index: 1;
+            transform: rotate(-25deg);
+            margin-left: 40px;
+            margin-top: 33px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="image-container" id="imageContainer">
+            <img src="./img/replacement.jpg" alt="tihuan" class="repimg">
+            <img src="./img/foreground.png" alt="original" class="foreimg">
+        </div>
+
+        <div class="button-container">
+            <button id="btn">点击替换图片</button>
+            <input type="file" id="fileInput" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        //下载状态
+        let isDownload = false;
+
+        document.getElementById('btn').addEventListener('click', function () {
+            const btnText = document.getElementById('btn').innerText;
+            if (btnText === '点击替换图片' || btnText === '再来一张') {
+                // 触发文件输入框
+                document.getElementById('fileInput').click();
+            } else if (document.getElementById('btn').innerText === '点击下载') {
+                //触发下载
+                downloadImage();
+            }
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            var file = event.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    // 获取 .repimg 类的 img 元素
+                    var repImg = document.querySelector('.repimg');
+
+                    // 替换图片源
+                    repImg.src = URL.createObjectURL(file);
+                    document.getElementById('btn').innerText = '点击下载';
+                    isDownload = true;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function downloadImage() {
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+            var imageContainer = document.getElementById('imageContainer');
+            var images = imageContainer.querySelectorAll('img');
+
+            // 确保图片已经加载完成
+            Promise.all(Array.from(images).map(img => {
+                return new Promise(resolve => {
+                    if (img.complete) {
+                        resolve();
+                    } else {
+                        img.onload = resolve;
+                    }
+                });
+            })).then(() => {
+                // 设置画布大小
+                canvas.width = imageContainer.offsetWidth;
+                canvas.height = imageContainer.offsetHeight;
+
+                // 绘制图片到画布
+                images.forEach(img => {
+                    ctx.save();  // 保存当前状态
+                    if (img.classList.contains('repimg')) {
+                        // 计算旋转中心
+                        const centerX = img.offsetLeft + img.offsetWidth / 2;
+                        const centerY = img.offsetTop + img.offsetHeight / 2;
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate(-25 * Math.PI / 180);  // 应用旋转
+                        ctx.translate(-centerX, -centerY);
+                    }
+
+                    ctx.drawImage(img, img.offsetLeft, img.offsetTop, img.offsetWidth, img.offsetHeight);
+                    ctx.restore();  // 恢复状态
+                });
+
+                // 创建下载链接
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'combined_image.jpg';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    // 在下载完成后修改按钮文本
+                    document.getElementById('btn').innerText = '再来一张';
+                });
+            });
+        }
+
+    </script>
+
+</body>
+
+</html>
